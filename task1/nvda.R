@@ -1,3 +1,4 @@
+# uzkraunami, paruosiami duomenys
 nvda <- fread("data/NVDA.csv")# [ , 1:4, with = T]
 nvda[ , diff := abs(Open - Close)]
 nvda <- nvda[year(Date) > 2018]
@@ -5,6 +6,8 @@ df <- nvda[ , .(Date, diff)]
 names(df) <- c("dt", "kint")
 df[ , dt := as_date(dt)]
 df[ , "Realūs stebėjimai" := as.numeric(kint)]
+
+# skaiciuojamas slenkantis vidurkis
 df[ , "5 dienų slenkantis vidurkis" := myMa(kint, 5)]
 # df[ , "20 dienų slenkantis vidurkis" := myMa(kint, 20)]
 df[ , "60 dienų slenkantis vidurkis" := myMa(kint, 60)]
@@ -14,10 +17,9 @@ df[ , kint := NULL]
 
 # duomenu kreives itraukiant kintamuosius suglodintus slenkanciu vidurkiu
 df2 <- melt(data = df, id.vars = "dt", variable.name = "variable")
-ggplot(data = df2, aes(x = dt, y = value, color = variable)) +
-  # geom_point(data = df2[variable == "kint"], aes(x = dt, y = value, color = variable)) +
-  geom_line(size = 0.7) +
-  geom_point(size = 0.7) +
+g <- ggplot(data = df2, aes(x = dt, y = value, color = variable)) +
+  geom_line(size = 0.6) +
+  geom_point(size = 0.6) +
   theme_bw() +
   scale_color_manual(values = c("#6e6a6a", "darkred", "steelblue", "darkgreen", "red")) +
   scale_x_date(breaks = "4 month") +
@@ -32,13 +34,20 @@ ggplot(data = df2, aes(x = dt, y = value, color = variable)) +
         legend.text = element_text(size = 12),
         legend.background=element_blank())
 
-# isspaussdinti acf grafikus visiems stulpeliams
-# lapply(df[ , -1], function(x) myPlotAcf(acf(na.omit(x), lag.max = length(x)/2, plot = F), laik = "Metai"))
-lapply(df[ , -1], function(x) myPlotAcf(na.omit(x), laik = "Dienos"))
+# issaugomas bendras grafikas i pdf
+mySavePdf(g, nm = "nvda1")
+
+# issaugo acf grafikus visiems stulpeliams i atskirus pdf
+nm.df <- names(df)[-1]
+for (x in nm.df) {
+  myPlotAcf(na.omit(df[ , get(x)]), laik = "Dienos",
+            pdf.out = T, nm = paste0("nvda2", which(nm.df == x)))
+}
 
 # autokoreliacijos koeficientas
 lapply(df[ , -1], function(x) length(x))
 lapply(df[ , -1], function(x) myCor(na.omit(x)))
-lapply(df[ , -1], function(x) which(myCor(na.omit(x))[[2]] <= 0))
-lapply(df[ , -1], function(x) which(myCor(na.omit(x))[[2]] <= 2/sqrt(length(x))))
-
+# pirmos 6 reiksmes kai autokoreliacijos koeficientas <= reiksmingumo lygi
+lapply(df[ , -1], function(x) head(which(myCor(na.omit(x))[[2]] <= 2/sqrt(length(x)))))
+# pirmos 6 reiksmes kai autokoreliacijos koeficientas <= 0
+lapply(df[ , -1], function(x) head(which(myCor(na.omit(x))[[2]] <= 0)))

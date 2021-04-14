@@ -1,22 +1,22 @@
-myecg <- fread("data/ecg_2021-04-12.csv", fill=T)[[1]]
-df1 <- data.table(dt = seq(0, 30, length.out = length(myecg)),
-                  kint = as.numeric(myecg))
+# myecg <- fread("data/ecg_2021-04-12.csv", fill=T)[[1]]
+# df1 <- data.table(dt = seq(0, 30, length.out = length(myecg)),
+#                   kint = as.numeric(myecg))
 # myecg <- fread("data/ecg_2021-02-10.csv", fill=T)[[1]]
 # myecg <- fread("data/ecg_2021-02-09.csv", fill=T)[[1]]
-# myecg <- fread("data/ecg_2021-02-07.csv", fill=T)[[1]]
+# myecg <- fread("data/ecg_2021-02-07.csv", fill=T)
+
+# uzkraunami, paruosiami duomenys
 myecg <- fread("data/ecg_2020-10-14.csv", fill=T)[[1]]
 df <- data.table(dt = seq(0, 30, length.out = length(myecg)),
                  kint = as.numeric(myecg))
-# df <- df[seq(1, nrow(df), by = 2), ]
+
+# skaiciuojamas slenkantis vidurkis
 langas <- round(nrow(df)/25/10)
-df[ , paste0(langas, " stebejimų slenkantis vidurkis") := as.numeric(myMa(kint, langas))]
+df[ , paste0(langas, " stebejimų (1/10 dūžio) slenkantis vidurkis") := as.numeric(myMa(kint, langas))]
 
 # originaliu duomenu kreive
-ggplot(data = df, aes(x = dt, y = kint)) +
-  # geom_point(data = df2[variable == "kint"], aes(x = dt, y = value, color = variable)) +
-  geom_line(size = 0.7) +
-  # geom_line(data = df1, aes(x = dt, y = kint),size = 0.7, color = "red") +
-  # geom_point(size = 0.7) +
+g <- ggplot(data = df, aes(x = dt, y = kint)) +
+  geom_line(size = 0.6) +
   theme_bw() +
   scale_color_manual(values = c("#6e6a6a", "darkred", "steelblue", "darkgreen", "red", "lightblue")) +
   scale_x_continuous(n.breaks = 15) +
@@ -32,16 +32,35 @@ ggplot(data = df, aes(x = dt, y = kint)) +
         legend.text = element_text(size = 12),
         legend.background=element_blank())
 
-myPlotAcf(df[[2]], laik = "Laikas", x.breaks = 15)
+# issaugomas bendras grafikas i pdf
+mySavePdf(g, nm = "ekg1")
+
+# issaugo acf grafikus visiems stulpeliams i atskirus pdf
+nm.df <- names(df)[2]
+for (x in nm.df) {
+  myPlotAcf(na.omit(df[ , get(x)]), laik = "Laikas", x.breaks = 15,
+            pdf.out = T, nm = paste0("ekg2", which(nm.df == x)))
+}
+
+# autokoreliacijos koeficientas
+lapply(df[ , -1], function(x) length(x))
+lapply(df[ , -1], function(x) myCor(na.omit(x)))
+
+# pirmos 6 reiksmes kai autokoreliacijos koeficientas <= reiksmingumo lygi
+lapply(df[ , -1], function(x) which(myCor(na.omit(x))[[2]] <= 2/sqrt(length(x))) - 1)
+# pirmos 6 reiksmes kai autokoreliacijos koeficientas <= 0
+lapply(df[ , -1], function(x) which(myCor(na.omit(x))[[2]] <= 0) - 1)
+
+
 
 df1 <- df[dt >= 6 & dt <= 12]
 setnames(df1, "kint", "Realūs stebėjimai")
 # duomenu kreives itraukiant kintamuosius suglodintus slenkanciu vidurkiu
 df2 <- melt(data = df1, id.vars = "dt", variable.name = "variable")
-ggplot(data = df2, aes(x = dt, y = value, color = variable)) +
+g <- ggplot(data = df2, aes(x = dt, y = value, color = variable)) +
   # geom_point(data = df2[variable == "kint"], aes(x = dt, y = value, color = variable)) +
-  geom_line(size = 0.7) +
-  geom_point(size = 0.7) +
+  geom_line(size = 0.6) +
+  geom_point(size = 0.6) +
   theme_bw() +
   scale_color_manual(values = c("#6e6a6a", "darkred", "steelblue", "darkgreen", "red")) +
   scale_x_continuous(n.breaks = 10) +
@@ -57,37 +76,44 @@ ggplot(data = df2, aes(x = dt, y = value, color = variable)) +
         legend.text = element_text(size = 12),
         legend.background=element_blank())
 
+# issaugomas bendras grafikas i pdf
+mySavePdf(g, nm = "ekg3")
 
-# isspaussdinti acf grafikus visiems stulpeliams
-# lapply(df[ , -1], function(x) myPlotAcf(acf(na.omit(x), lag.max = length(x)/2, plot = F), laik = "Metai"))
-lapply(df1[, -1], function(x) myPlotAcf((x), laik = "Laikas", x.breaks = 15))
+# issaugo acf grafikus visiems stulpeliams i atskirus pdf
+nm.df1 <- names(df1)[-1]
+for (x in nm.df1) {
+  myPlotAcf(na.omit(df1[ , get(x)]), laik = "Laikas", x.breaks = 15,
+            pdf.out = T, nm = paste0("ekg4", which(nm.df1 == x)))
+}
 
 # autokoreliacijos koeficientas
 lapply(df1[ , -1], function(x) length(x))
 lapply(df1[ , -1], function(x) myCor(na.omit(x)))
-lapply(df1[ , -1], function(x) which(myCor(na.omit(x))[[2]] <= 0))
-lapply(df1[ , -1], function(x) which(myCor(na.omit(x))[[2]] <= 2/sqrt(length(x))))
+
+# pirmos 6 reiksmes kai autokoreliacijos koeficientas <= reiksmingumo lygi
+lapply(df1[ , -1], function(x) head(which(myCor(na.omit(x))[[2]] <= 2/sqrt(length(x))) - 1))
+# pirmos 6 reiksmes kai autokoreliacijos koeficientas <= 0
+lapply(df1[ , -1], function(x) head(which(myCor(na.omit(x))[[2]] <= 0) - 1))
+
 
 
 ############################################################################
+### Viskas tas pats sumazinus stebejimu skaiciu 4 kartus -------------------
 ############################################################################
-############################################################################
-
-
 
 myecg <- fread("data/ecg_2020-10-14.csv", fill=T)[[1]]
 df <- data.table(dt = seq(0, 30, length.out = length(myecg)),
                  kint = as.numeric(myecg))
 df <- df[seq(1, nrow(df), by = 4), ]
 langas <- round(nrow(df)/25/10)
-df[ , paste0(langas, " stebejimų slenkantis vidurkis") := as.numeric(myMa(kint, langas))]
+df[ , paste0(langas, " stebejimų (1/10 dūžio) slenkantis vidurkis") := as.numeric(myMa(kint, langas))]
 
 # originaliu duomenu kreive
-ggplot(data = df, aes(x = dt, y = kint)) +
+g <- ggplot(data = df, aes(x = dt, y = kint)) +
   # geom_point(data = df2[variable == "kint"], aes(x = dt, y = value, color = variable)) +
-  geom_line(size = 0.7) +
-  # geom_line(data = df1, aes(x = dt, y = kint),size = 0.7, color = "red") +
-  # geom_point(size = 0.7) +
+  geom_line(size = 0.6) +
+  # geom_line(data = df1, aes(x = dt, y = kint),size = 0.6, color = "red") +
+  # geom_point(size = 0.6) +
   theme_bw() +
   scale_color_manual(values = c("#6e6a6a", "darkred", "steelblue", "darkgreen", "red", "lightblue")) +
   scale_x_continuous(n.breaks = 15) +
@@ -103,16 +129,34 @@ ggplot(data = df, aes(x = dt, y = kint)) +
         legend.text = element_text(size = 12),
         legend.background=element_blank())
 
-myPlotAcf(df[[2]], laik = "Laikas", x.breaks = 15)
+# issaugomas bendras grafikas i pdf
+mySavePdf(g, nm = "ekg5")
+
+# issaugo acf grafikus visiems stulpeliams i atskirus pdf
+nm.df <- names(df)[2]
+for (x in nm.df) {
+  myPlotAcf(na.omit(df[ , get(x)]), laik = "Laikas", x.breaks = 15,
+            pdf.out = T, nm = paste0("ekg6", which(nm.df == x)))
+}
+
+# autokoreliacijos koeficientas
+lapply(df[ , -1], function(x) length(x))
+lapply(df[ , -1], function(x) myCor(na.omit(x)))
+
+# pirmos 6 reiksmes kai autokoreliacijos koeficientas <= reiksmingumo lygi
+lapply(df[ , -1], function(x) head(which(myCor(na.omit(x))[[2]] <= 2/sqrt(length(x))) - 1))
+# pirmos 6 reiksmes kai autokoreliacijos koeficientas <= 0
+lapply(df[ , -1], function(x) head(which(myCor(na.omit(x))[[2]] <= 0) - 1))
+
 
 df1 <- df[dt >= 6 & dt <= 12]
 setnames(df1, "kint", "Realūs stebėjimai")
 # duomenu kreives itraukiant kintamuosius suglodintus slenkanciu vidurkiu
 df2 <- melt(data = df1, id.vars = "dt", variable.name = "variable")
-ggplot(data = df2, aes(x = dt, y = value, color = variable)) +
+g <- ggplot(data = df2, aes(x = dt, y = value, color = variable)) +
   # geom_point(data = df2[variable == "kint"], aes(x = dt, y = value, color = variable)) +
-  geom_line(size = 0.7) +
-  geom_point(size = 0.7) +
+  geom_line(size = 0.6) +
+  geom_point(size = 0.6) +
   theme_bw() +
   scale_color_manual(values = c("#6e6a6a", "darkred", "steelblue", "darkgreen", "red")) +
   scale_x_continuous(n.breaks = 10) +
@@ -128,13 +172,20 @@ ggplot(data = df2, aes(x = dt, y = value, color = variable)) +
         legend.text = element_text(size = 12),
         legend.background=element_blank())
 
+# issaugomas bendras grafikas i pdf
+mySavePdf(g, nm = "ekg7")
 
-# isspaussdinti acf grafikus visiems stulpeliams
-# lapply(df[ , -1], function(x) myPlotAcf(acf(na.omit(x), lag.max = length(x)/2, plot = F), laik = "Metai"))
-lapply(df1[, -1], function(x) myPlotAcf((x), laik = "Laikas", x.breaks = 15))
-
+# issaugo acf grafikus visiems stulpeliams i atskirus pdf
+nm.df1 <- names(df1)[-1]
+for (x in nm.df1) {
+  myPlotAcf(na.omit(df1[ , get(x)]), laik = "Laikas", x.breaks = 15,
+            pdf.out = T, nm = paste0("ekg8", which(nm.df1 == x)))
+}
 # autokoreliacijos koeficientas
 lapply(df1[ , -1], function(x) length(x))
 lapply(df1[ , -1], function(x) myCor(na.omit(x)))
-lapply(df1[ , -1], function(x) which(myCor(na.omit(x))[[2]] <= 0))
-lapply(df1[ , -1], function(x) which(myCor(na.omit(x))[[2]] <= 2/sqrt(length(x))))
+
+# pirmos 6 reiksmes kai autokoreliacijos koeficientas <= reiksmingumo lygi
+lapply(df1[ , -1], function(x) head(which(myCor(na.omit(x))[[2]] <= 2/sqrt(length(x))) - 1))
+# pirmos 6 reiksmes kai autokoreliacijos koeficientas <= 0
+lapply(df1[ , -1], function(x) head(which(myCor(na.omit(x))[[2]] <= 0) - 1))

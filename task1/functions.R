@@ -1,17 +1,16 @@
-# koreliacijos funkcija
+# autokoreliacijos funkcija
 myCor <- function(x){
-  n <- length(x)
-  nd <- n/2 # lagu skaicius
-  kor <- numeric(nd) # reikalingo atsakymo vektoriaus ilgio tuscias vektorius
+  N <- length(x) # stebėjimų skaičius
+  nd <- N/2 # lagų skaičius
+  kor <- numeric(nd) # atsakymų vektoriaus ilgio tuščias vektorius
   for (d in 0:nd) {
-    x1 <- x[1:(n-d)] # stebejimai
-    x2 <- x[(d+1):n] # uzlaginti stebejimai
+    x1 <- x[1:(N-d)] # stebėjimai
+    x2 <- x[(d+1):N] # užlaginti stebėjimai
     dif1 <- (x1 - mean(x1))
     dif2 <- (x2 - mean(x2))
-    sk1 <- sum(dif1 * dif2)
-    vard1 <- sqrt(sum(dif1^2) * sum(dif2^2))
-    kor[d+1] <- sk1 / vard1
-    # kor[d+1] <- cor(x1,x2) # palyginimui
+    skait <- sum(dif1 * dif2) # skaitiklis
+    vard <- sqrt(sum(dif1^2) * sum(dif2^2)) # vardiklis
+    kor[d+1] <- skait / vard
   }
   out <- data.frame(lag = 0:nd, kor = kor)
   return(out)
@@ -23,9 +22,16 @@ myDate <- function(kint){as.Date(paste0(gsub("M", "-", kint), "-01"), format = "
 # paprasto dvipusio slenkancio vidurkio funkcija
 myMa <- function(x, n = 5){stats::filter(x, rep(1 / n, n), sides = 2)}
 
+# funkcija issaugoti grafika i .pdf
+mySavePdf <- function(gg, nm){
+  cairo_pdf(paste0("out/", nm, ".pdf"), width = 7.2, height = 4)
+  plot(gg)
+  dev.off()
+}
 
 # funkcija skirta isbrezti autokoreliacijos grafika paduodant vektoriu
-myPlotAcf <- function(gg, spalva = "black", laik = "Dienos", x.breaks = 20) {
+myPlotAcf <- function(gg, spalva = "black", laik = "Dienos", x.breaks = 20,
+                      pdf.out = F, nm = "name") {
   conf.lims <- c(-1,1)*(2/sqrt(length(gg))) # pasikliautinis intervalas acf 
   acfplot <- myCor(gg) # paskaiciuojama autokoreliacija
   
@@ -41,5 +47,5 @@ myPlotAcf <- function(gg, spalva = "black", laik = "Dienos", x.breaks = 20) {
     theme(axis.title.x = element_text(vjust = 0, size = 12),
           axis.title.y = element_text(vjust = 2, size = 12))
   
-  return(g)
+  if (pdf.out) return(mySavePdf(g, nm)) else return(g)
 }

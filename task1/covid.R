@@ -1,22 +1,21 @@
-
+# uzkraunami, paruosiami duomenys
 covid <- fread("data/covid.csv")# [ , 1:4, with = T]
 df <- covid[ , .(day, confirmed_daily)] # teigiam
 names(df) <- c("dt", "kint")
 df[ , dt := myDate(dt)]
 df[ , "Realūs stebėjimai" := as.numeric(kint)]
+
+# skaiciuojamas slenkantis vidurkis
 df[ , "7 dienų slenkantis vidurkis" := myMa(kint, 7)]
 df[ , "14 dienų slenkantis vidurkis" := myMa(kint, 14)]
-# df[ , "Slenkančio vidurkio algoritmas, 30 dienų" := myMa(kint, 30)]
-# df[ , "Slenkančio vidurkio algoritmas, 90 dienų" := myMa(kint, 90)]
 df[ , kint := NULL]
 
 
 # duomenu kreives itraukiant kintamuosius suglodintus slenkanciu vidurkiu
 df2 <- melt(data = df, id.vars = "dt", variable.name = "variable")
-ggplot(data = df2, aes(x = dt, y = value, color = variable)) +
-  # geom_point(data = df2[variable == "kint"], aes(x = dt, y = value, color = variable)) +
-  geom_line(size = 0.7) +
-  geom_point(size = 0.7) +
+g <- ggplot(data = df2, aes(x = dt, y = value, color = variable)) +
+  geom_line(size = 0.6) +
+  geom_point(size = 0.6) +
   theme_bw() +
   scale_color_manual(values = c("#6e6a6a", "darkred", "steelblue", "darkgreen", "red")) +
   scale_x_date(breaks = "2 month") +
@@ -31,25 +30,33 @@ ggplot(data = df2, aes(x = dt, y = value, color = variable)) +
         legend.text = element_text(size = 12),
         legend.background=element_blank())
 
-# isspaussdinti acf grafikus visiems stulpeliams
-# lapply(df[ , -1], function(x) myPlotAcf(acf(na.omit(x), lag.max = length(x)/2, plot = F), laik = "Metai"))
-lapply(df[ , -1], function(x) myPlotAcf(na.omit(x), laik = "Dienos"))
+# issaugomas bendras grafikas i pdf
+mySavePdf(g, nm = "covid1")
+
+# issaugo acf grafikus visiems stulpeliams i atskirus pdf
+nm.df <- names(df)[-1]
+for (x in nm.df) {
+  myPlotAcf(na.omit(df[ , get(x)]), laik = "Dienos",
+            pdf.out = T, nm = paste0("covid2", which(nm.df == x)))
+}
+
 
 # autokoreliacijos koeficientas
 lapply(df[ , -1], function(x) length(x))
 lapply(df[ , -1], function(x) myCor(na.omit(x)))
-lapply(df[ , -1], function(x) which(myCor(na.omit(x))[[2]] <= 0))
-lapply(df[ , -1], function(x) which(myCor(na.omit(x))[[2]] <= 2/sqrt(length(x))))
+# pirmos 6 reiksmes kai autokoreliacijos koeficientas <= reiksmingumo lygi
+lapply(df[ , -1], function(x) head(which(myCor(na.omit(x))[[2]] <= 2/sqrt(length(x)))))
+lapply(df[ , -1], function(x) head(which(myCor(na.omit(x))[[2]] <= 0)))
+
 
 # Isfiltruojamas antros bangos laikotarpis
 df3 <- df[dt >= "2020-10-01" & dt < "2021-02-01", ]
 
 # duomenu kreives itraukiant kintamuosius suglodintus slenkanciu vidurkiu
 df2 <- melt(data = df3, id.vars = "dt", variable.name = "variable")
-ggplot(data = df2, aes(x = dt, y = value, color = variable)) +
-  # geom_point(data = df2[variable == "kint"], aes(x = dt, y = value, color = variable)) +
-  geom_line(size = 0.7) +
-  geom_point(size = 0.7) +
+g <- ggplot(data = df2, aes(x = dt, y = value, color = variable)) +
+  geom_line(size = 0.6) +
+  geom_point(size = 0.6) +
   theme_bw() +
   scale_color_manual(values = c("#6e6a6a", "darkred", "steelblue", "darkgreen", "red")) +
   scale_x_date(breaks = "1 month") +
@@ -64,15 +71,20 @@ ggplot(data = df2, aes(x = dt, y = value, color = variable)) +
         legend.text = element_text(size = 12),
         legend.background=element_blank())
 
-# isspaussdinti acf grafikus visiems stulpeliams
-# lapply(df[ , -1], function(x) myPlotAcf(acf(na.omit(x), lag.max = length(x)/2, plot = F), laik = "Metai"))
-lapply(df3[ , -1], function(x) myPlotAcf(x, laik = "Dienos"))
+# issaugomas bendras grafikas i pdf
+mySavePdf(g, nm = "covid3")
+
+# issaugo acf grafikus visiems stulpeliams i atskirus pdf
+nm.df3 <- names(df3)[-1]
+for (x in nm.df3) {
+  myPlotAcf((df3[ , get(x)]), laik = "Dienos",
+            pdf.out = T, nm = paste0("covid4", which(nm.df3 == x)))
+}
 
 # autokoreliacijos koeficientas
 lapply(df3[ , -1], function(x) length(x))
 lapply(df3[ , -1], function(x) myCor(na.omit(x)))
-lapply(df3[ , -1], function(x) which(myCor((x))[[2]] <= 0))
-lapply(df3[ , -1], function(x) which(myCor((x))[[2]] <= 2/sqrt(length(x))))
-
-
-
+# pirmos 6 reiksmes kai autokoreliacijos koeficientas <= reiksmingumo lygi
+lapply(df3[ , -1], function(x) head(which(myCor((x))[[2]] <= 2/sqrt(length(x)))))
+# pirmos 6 reiksmes kai autokoreliacijos koeficientas <= 0
+lapply(df3[ , -1], function(x) head(which(myCor((x))[[2]] <= 0)))
